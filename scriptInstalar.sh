@@ -22,7 +22,7 @@ fi
 
 # Crear tablas y usuario en la base de datos
 
-sudo -u postgres psql -c "CREATE USER usuario1 WHIT PASSWORD 'usuario1';"
+sudo -u postgres psql -c "CREATE USER usuario1 WITH PASSWORD 'usuario1';"
 sudo -u postgres psql -c "CREATE DATABASE Proyecto OWNER usuario1;"
 sudo -u postgres psql -c "
     CREATE TABLE users (
