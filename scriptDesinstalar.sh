@@ -1,4 +1,4 @@
-#!/bin/bash
+bin/bash
 
 echo "Desinstalar proyecto"
 
@@ -19,4 +19,4 @@ echo "Desinstalar Node.js y PostgreSQL"
 sudo apt remove --purge -y nodejs npm postgresql postgresql-contrib
 sudo apt autoremove -y
 
-echo "Desinstalacion terminada"
+echo "Desinstalacion terminada" #hola
