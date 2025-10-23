@@ -139,10 +139,10 @@ cat > CN_api_bk/queries.js <<'EOL'
 const Pool = require('pg').Pool
 var fs = require('fs');
 const pool = new Pool({
-    user: 'postgres',
+    user: '$DB_USER',
     host: 'localhost',
-    database: 'api',
-    password: 'postgres',
+    database: '$DB_NAME',
+    password: '$DB_PASS',
     port: 5432,
     ssl: false
 })
