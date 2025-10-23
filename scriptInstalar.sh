@@ -1,4 +1,8 @@
+
 #!/bin/bash
+
+#Bienvenidos al imalalla auauuauaua
+
 
 # Actualizar paquetes
 sudo apt update -y
