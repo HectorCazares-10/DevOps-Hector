@@ -48,4 +48,3 @@ fi
 
 # Finalizacion
 success "Desinstalación completa del proyecto CN"
-echo "Las bases de datos de PostgreSQL se han conservado."

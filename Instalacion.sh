@@ -96,5 +96,131 @@ fi
 npm install
 cd ..
 
+# Modificar los archivos (App.jsx)
+echo "Modificando archivo App.jsx"
+cat > CN_React/src/App.jsx <<'EOL'
+import { useState, useEffect } from 'react';
+import './App.css'
+
+function App() {
+  const [data, setData] = useState(null);
+  useEffect(()=> {
+    fetch("http://localhost:3000/users",{
+      'mode': 'cors',
+      'headers': {
+          'Access-Control-Allow-Origin': '*',
+      }
+    })
+      .then((response) => response.json())
+      .then((data) => setData(data));
+
+  }, []);
+  return (
+    <div className='App'>
+      <h1>Fetch</h1>
+      <div className='card'>
+        <ul>
+          {data?.map((user)=>(
+            <li key={user.id}>{user.name}</li>
+
+          ))}
+        </ul>
+      </div>
+
+    </div>
+
+  );
+}
+
+export default App
+EOL
+
+# Modificar archivos (queries.js)
+cat > CN_api_bk/queries.js <<'EOL'
+const Pool = require('pg').Pool
+var fs = require('fs');
+const pool = new Pool({
+    user: 'user1',
+    host: 'localhost',
+    database: 'database_bk',
+    password: 'user1',
+    port: 5432,
+    ssl: false
+})
+
+
+// GET
+const getUsers = (request, response) => {
+    pool.query('SELECT * FROM users ORDER BY id ASC', (error, results) => {
+        if (error) {
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
+}
+
+const getUserById = (request, response) => {
+    const id = parseInt(request.params.id)
+
+    pool.query('SELECT * FROM users WHERE id=$1', [id], (error, results) => {
+        if (error) {
+            throw error
+        }
+        response.status(200).json(results.rows)
+
+    })
+}
+
+// POST
+const createUser = (request, response) => {
+    const { name, email } = request.body
+
+    pool.query('INSERT INTO USERS (name, email) VALUES ($1, $2) RETURNIG *', [name, email], (error, results) => {
+        if (error) {
+            throw error
+        }
+        response.status(201).send('Usuarios Agregados con ID: ${results.rows[0].id}')
+    })
+}
+
+// PUT
+
+const updateUser = (request, response) => {
+    const id = parseInt(request.params.id)
+    const { name, email } = request.body
+
+    pool.query(
+        'UPDATE users SET name = $1, email = $2 where id= $3',
+        [name, email, id],
+        (error, results) => {
+            if (error) {
+                throw error
+            }
+            response.status(200).send('User modified with ID: ${id}')
+        }
+    )
+}
+
+// DELETE
+const deleteUser = (request, response) => {
+    const id = parseInt(request.params.id)
+
+    pool.query('DELETE FROM users WHERE id = $1', [id], (error, resuslts) => {
+        if (error) {
+            throw error
+        }
+        response.status(200).send('USER eliminado con el ID: ${id}')
+    })
+}
+
+module.exports = {
+    getUsers,
+    getUserById,
+    createUser,
+    updateUser,
+    deleteUser,
+}
+EOL
+
 # Finalizar instalacion
 success "Instalación y configuración completadas correctamente"
