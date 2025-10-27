@@ -1,18 +1,16 @@
 const Pool = require('pg').Pool
 var fs = require('fs');
 const pool = new Pool({
-    user: '',
-    host: '',
-    database: 'api',
-    password: '',
+    user: 'postgres',
+    host: 'localhost',
+    database: 'database_bk',
+    password: 'postgres',
     port: 5432,
-    ssl: {
-    	ca: fs.readFileSync('CaCertificate-db_S.pub') 
-    }
+    ssl: false
 })
 
 
-// GET 
+// GET
 const getUsers = (request, response) => {
     pool.query('SELECT * FROM users ORDER BY id ASC', (error, results) => {
         if (error) {
@@ -30,7 +28,7 @@ const getUserById = (request, response) => {
             throw error
         }
         response.status(200).json(results.rows)
-	
+
     })
 }
 

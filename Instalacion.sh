@@ -4,8 +4,8 @@
 
 # Variables de configuracion
 DB_NAME="database_bk"
-DB_USER="user1"
-DB_PASS="user1"
+DB_USER="postgres"
+DB_PASS="postgres"
 REPO_API="https://github.com/evil2014/CN_api_bk.git"
 REPO_FRONT="https://github.com/evil2014/CN_React.git"
 
@@ -33,9 +33,6 @@ else
   success "PostgreSQL se esta ejecutando"
 fi
 
-# Configuracion de la base de datos
-sudo -u postgres psql -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASS';"
-
 # Verifica y crea la base de datos
 EXISTE_BD=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'")
 if [ "$EXISTE_BD" != "1" ]; then
@@ -44,6 +41,9 @@ if [ "$EXISTE_BD" != "1" ]; then
 else
   success "La base de datos '$DB_NAME' ya existe."
 fi
+
+# Configuracion de la base de datos
+sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'postgres';"
 
 # Crear tabla y agregar datos
 sudo -u postgres psql -d $DB_NAME -c "CREATE TABLE IF NOT EXISTS users (
@@ -95,8 +95,8 @@ else
 fi
 npm install
 cd ..
-# modificar archivos
-echo "Modificando archivo App.jsx"
+
+# Modificar los archivos
 cat > CN_React/src/App.jsx <<'EOL'
 import { useState, useEffect } from 'react';
 import './App.css'
@@ -134,146 +134,15 @@ function App() {
 export default App
 EOL
 
-echo "Modificando archivo queries.js"
+# Modificando queries.js
 cat > CN_api_bk/queries.js <<'EOL'
 const Pool = require('pg').Pool
 var fs = require('fs');
 const pool = new Pool({
-    user: '$DB_USER',
-    host: 'localhost',
-    database: '$DB_NAME',
-    password: '$DB_PASS',
-    port: 5432,
-    ssl: false
-})
-
-
-// GET
-const getUsers = (request, response) => {
-    pool.query('SELECT * FROM users ORDER BY id ASC', (error, results) => {
-        if (error) {
-            throw error
-        }
-        response.status(200).json(results.rows)
-    })
-}
-
-const getUserById = (request, response) => {
-    const id = parseInt(request.params.id)
-
-    pool.query('SELECT * FROM users WHERE id=$1', [id], (error, results) => {
-        if (error) {
-            throw error
-        }
-        response.status(200).json(results.rows)
-    })
-}
-
-// POST
-const createUser = (request, response) => {
-    const { name, email } = request.body
-
-    pool.query('INSERT INTO USERS (name, email) VALUES ($1, $2) RETURNIG *', [name, email], (error, results) => {
-        if (error) {
-            throw error
-        }
-        response.status(201).send('Usuarios Agregados con ID: ${results.rows[0].id}')
-    })
-}
-
-// PUT
-
-const updateUser = (request, response) => {
-    const id = parseInt(request.params.id)
-    const { name, email } = request.body
-
-    pool.query(
-        'UPDATE users SET name = $1, email = $2 where id= $3',
-        [name, email, id],
-        (error, results) => {
-            if (error) {
-                throw error
-            }
-            response.status(200).send('User modified with ID: ${id}')
-        }
-    )
-}
-
-// DELETE
-const deleteUser = (request, response) => {
-    const id = parseInt(request.params.id)
-
-    pool.query('DELETE FROM users WHERE id = $1', [id], (error, resuslts) => {
-        if (error) {
-            throw error
-        }
-        response.status(200).send('USER eliminado con el ID: ${id}')
-    })
-}
-
-module.exports = {
-    getUsers,
-    getUserById,
-    createUser,
-    updateUser,
-    deleteUser,
-}
-EOL
-
-echo "Instalación completa"
-
-
-echo "Instalación y ejecución completa"
-
-
-# Modificar los archivos (App.jsx)
-echo "Modificando archivo App.jsx"
-cat > CN_React/src/App.jsx <<'EOL'
-import { useState, useEffect } from 'react';
-import './App.css'
-
-function App() {
-  const [data, setData] = useState(null);
-  useEffect(()=> {
-    fetch("http://localhost:3000/users",{
-      'mode': 'cors',
-      'headers': {
-          'Access-Control-Allow-Origin': '*',
-      }
-    })
-      .then((response) => response.json())
-      .then((data) => setData(data));
-
-  }, []);
-  return (
-    <div className='App'>
-      <h1>Fetch</h1>
-      <div className='card'>
-        <ul>
-          {data?.map((user)=>(
-            <li key={user.id}>{user.name}</li>
-
-          ))}
-        </ul>
-      </div>
-
-    </div>
-
-  );
-}
-
-export default App
-EOL
-
-# Modificar archivos (queries.js)
-cat > CN_api_bk/queries.js <<'EOL'
-const Pool = require('pg').Pool
-var fs = require('fs');
-const pool = new Pool({
-    user: 'user1',
+    user: 'postgres',
     host: 'localhost',
     database: 'database_bk',
-    password: 'user1',
+    password: 'postgres',
     port: 5432,
     ssl: false
 })
@@ -349,6 +218,59 @@ module.exports = {
     createUser,
     updateUser,
     deleteUser,
+}
+EOL
+
+# Modificando archivo package.json (CN_api_bk)
+cat > CN_api_bk/package.json <<'EOL'
+{
+  "name": "project_api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",	
+    "test": "echo Error: no test specified && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "pg": "^8.11.3"
+  }
+}
+EOL
+
+# Modificando archivo package.json (CN_React)
+cat > CN_React/package.json <<'EOL'
+{
+  "name": "api",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "vite",
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
+    "@vitejs/plugin-react": "^4.2.1",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.34.1",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.6",
+    "vite": "^5.2.0"
+  }
 }
 EOL
 
