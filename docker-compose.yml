@@ -3,40 +3,47 @@ services:
     image: backend_node
     build: ./CN_api_bk
     ports:
-     - "3000:3000"
+      - "3000:3000"
     environment:
-     - DB_HOST=db
-     - DB_USER=postgres
-     - DB_PASSWORD=postgres
-     - DB_NAME=database_bk
-     - DB_PORT=5432
-     - NODE_ENV=development
+      - DB_HOST=db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=database_bk
+      - DB_PORT=5432
+      - NODE_ENV=development
     depends_on:
-     - db
-    
+      db:
+        condition: service_healthy
+
   db:
     image: postgres:15
     container_name: postgres_db
     environment: 
-     POSTGRES_USER: postgres
-     POSTGRES_PASSWORD: postgres
-     POSTGRES_DB: database_bk
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: database_bk
     ports:
-     - "5432:5432"
+      - "5432:5432"
     volumes:
-     - db_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
 
   frontend:
     build: ./CN_React
     container_name: frontend_node
     ports:
-     - "5173:5173"
+      - "5173:5173"
     working_dir: /app
     command: npm run dev -- --host 0.0.0.0
     depends_on:
-     - backend
+      - backend
     environment: 
-     - NODE_ENV=development
+      - NODE_ENV=development
 
 volumes:
   db_data:
