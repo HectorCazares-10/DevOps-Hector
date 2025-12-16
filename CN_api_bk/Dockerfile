@@ -1,5 +1,5 @@
 # Imagen base para node
-FROM node:18
+FROM node:18-alpine
 
 # Directorio de trabajo
 WORKDIR /app
@@ -8,7 +8,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instalar dependencias
-RUN npm install
+RUN npm install --production
 
 # Copiar el resto del codigo del backend
 COPY . .

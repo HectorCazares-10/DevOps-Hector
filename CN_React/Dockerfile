@@ -1,20 +1,13 @@
-# Imagen base
-FROM node:18-alpine
-
-# Directorio de trabajo
+# Build
+FROM node:18-alpine AS build
 WORKDIR /app
-
-# Copiar archivos de dependencias
 COPY package*.json ./
-
-# Instalar dependencias
-RUN npm ci 
-
-# Copiar codigo
+RUN npm install
 COPY . .
+RUN npm run build
 
-# Puerto donde corre el frontend
-EXPOSE 5173
-
-# Comando para correr el proyecto
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# Serve
+FROM nginx:alpine
+COPY --from=build /app/dist /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
