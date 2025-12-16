@@ -30,7 +30,7 @@ app.post('/users', db.createUser)
 app.put('/users/:id', db.updateUser)
 app.delete('/users/:id', db.deleteUser)
 
-app.listen(port, () => {
+app.listen(port, '0.0.0.0', () => {
     console.log(`APP running on port ${port}.`)
 })
 
