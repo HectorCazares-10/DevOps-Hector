@@ -1,0 +1,278 @@
+#!/bin/bash
+
+# Script de instalacion para levantar el proyecto
+
+# Variables de configuracion
+DB_NAME="database_bk"
+DB_USER="postgres"
+DB_PASS="postgres"
+REPO_API="https://github.com/evil2014/CN_api_bk.git"
+REPO_FRONT="https://github.com/evil2014/CN_React.git"
+
+# Colores
+GREEN="\e[32m"
+YELLOW="\e[33m"
+RED="\e[31m"
+ENDCOLOR="\e[0m"
+
+# Funciones para mensajes de colores 
+function info() { echo -e "${YELLOW}[INFO]${ENDCOLOR} $1"; }
+function success() { echo -e "${GREEN}[OK]${ENDCOLOR} $1"; }
+function error() { echo -e "${RED}[ERROR]${ENDCOLOR} $1"; }
+
+# Instalacion de las dependencias (git, Node.js, nginx, PostgreSQL)
+sudo apt update -y
+sudo apt install -y git curl nginx postgresql postgresql-contrib
+
+# Verificacion de la base de datos PostgreSQL
+if ! sudo systemctl is-active --quiet postgresql; then
+  info "Iniciando servicio PostgreSQL..."
+  sudo systemctl start postgresql
+  sudo systemctl enable postgresql
+else
+  success "PostgreSQL se esta ejecutando"
+fi
+
+# Verifica y crea la base de datos
+EXISTE_BD=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'")
+if [ "$EXISTE_BD" != "1" ]; then
+  info "Creando base de datos '$DB_NAME'..."
+  sudo -u postgres createdb $DB_NAME
+else
+  success "La base de datos '$DB_NAME' ya existe."
+fi
+
+# Configuracion de la base de datos
+sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'postgres';"
+
+# Crear tabla y agregar datos
+sudo -u postgres psql -d $DB_NAME -c "CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(30),
+  email VARCHAR(30)
+);"
+
+COUNT=$(sudo -u postgres psql -d $DB_NAME -tAc "SELECT COUNT(*) FROM users;")
+if [ "$COUNT" -eq 0 ]; then
+  info "Insertando datos iniciales..."
+  sudo -u postgres psql -d $DB_NAME -c "INSERT INTO users (name, email) VALUES
+    ('Hector', 'hector@gmail.com'),
+    ('Eduardo', 'eduardo@gmail.com'),
+    ('Keyla', 'keyla@gmail.com');"
+else
+  success "La tabla users ya contiene datos."
+fi
+
+# Instalacion de Node.js
+if ! command -v node >/dev/null 2>&1; then
+  info "Instalando Node.js..."
+  curl -fsSL https://deb.nodesource.com/setup_21.x | sudo -E bash -
+  sudo apt install -y nodejs
+else
+  success "Node.js ya está instalado."
+fi
+
+# Clonar e instalar el backend
+info "Instalando CN_api_bk..."
+if [ ! -d "CN_api_bk" ]; then
+  git clone $REPO_API
+  cd CN_api_bk || exit
+else
+  info "Directorio CN_api_bk ya existe, actualizando dependencias..."
+  cd CN_api_bk || exit
+fi
+npm install
+cd ..
+
+# Clonar e instalar el frontend
+info "Instalando CN_React..."
+if [ ! -d "CN_React" ]; then
+  git clone $REPO_FRONT
+  cd CN_React || exit
+else
+  info "Directorio CN_React ya existe, actualizando dependencias..."
+  cd CN_React || exit
+fi
+npm install
+cd ..
+
+# Modificar los archivos
+cat > CN_React/src/App.jsx <<'EOL'
+import { useState, useEffect } from 'react';
+import './App.css'
+
+function App() {
+  const [data, setData] = useState(null);
+  useEffect(()=> {
+    fetch("http://localhost:3000/users",{
+      'mode': 'cors',
+      'headers': {
+          'Access-Control-Allow-Origin': '*',
+      }
+    })
+      .then((response) => response.json())
+      .then((data) => setData(data));
+
+  }, []);
+  return (
+    <div className='App'>
+      <h1>Fetch</h1>
+      <div className='card'>
+        <ul>
+          {data?.map((user)=>(
+            <li key={user.id}>{user.name}</li>
+
+          ))}
+        </ul>
+      </div>
+
+    </div>
+
+  );
+}
+
+export default App
+EOL
+
+# Modificando queries.js
+cat > CN_api_bk/queries.js <<'EOL'
+const Pool = require('pg').Pool
+var fs = require('fs');
+const pool = new Pool({
+    user: 'postgres',
+    host: 'localhost',
+    database: 'database_bk',
+    password: 'postgres',
+    port: 5432,
+    ssl: false
+})
+
+
+// GET
+const getUsers = (request, response) => {
+    pool.query('SELECT * FROM users ORDER BY id ASC', (error, results) => {
+        if (error) {
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
+}
+
+const getUserById = (request, response) => {
+    const id = parseInt(request.params.id)
+
+    pool.query('SELECT * FROM users WHERE id=$1', [id], (error, results) => {
+        if (error) {
+            throw error
+        }
+        response.status(200).json(results.rows)
+
+    })
+}
+
+// POST
+const createUser = (request, response) => {
+    const { name, email } = request.body
+
+    pool.query('INSERT INTO USERS (name, email) VALUES ($1, $2) RETURNIG *', [name, email], (error, results) => {
+        if (error) {
+            throw error
+        }
+        response.status(201).send('Usuarios Agregados con ID: ${results.rows[0].id}')
+    })
+}
+
+// PUT
+
+const updateUser = (request, response) => {
+    const id = parseInt(request.params.id)
+    const { name, email } = request.body
+
+    pool.query(
+        'UPDATE users SET name = $1, email = $2 where id= $3',
+        [name, email, id],
+        (error, results) => {
+            if (error) {
+                throw error
+            }
+            response.status(200).send('User modified with ID: ${id}')
+        }
+    )
+}
+
+// DELETE
+const deleteUser = (request, response) => {
+    const id = parseInt(request.params.id)
+
+    pool.query('DELETE FROM users WHERE id = $1', [id], (error, resuslts) => {
+        if (error) {
+            throw error
+        }
+        response.status(200).send('USER eliminado con el ID: ${id}')
+    })
+}
+
+module.exports = {
+    getUsers,
+    getUserById,
+    createUser,
+    updateUser,
+    deleteUser,
+}
+EOL
+
+# Modificando archivo package.json (CN_api_bk)
+cat > CN_api_bk/package.json <<'EOL'
+{
+  "name": "project_api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",	
+    "test": "echo Error: no test specified && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "pg": "^8.11.3"
+  }
+}
+EOL
+
+# Modificando archivo package.json (CN_React)
+cat > CN_React/package.json <<'EOL'
+{
+  "name": "api",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "vite",
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
+    "@vitejs/plugin-react": "^4.2.1",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.34.1",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.6",
+    "vite": "^5.2.0"
+  }
+}
+EOL
+
+# Finalizar instalacion
+success "Instalación y configuración completadas correctamente"
